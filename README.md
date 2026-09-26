@@ -109,6 +109,26 @@ schema snapshot after an intentional change.
 
 ---
 
+## Docker Resource Limits
+
+Each service in `docker-compose.yml` has explicit memory limits via
+`deploy.resources.limits` to prevent OOM issues during local development:
+
+| Service            | Memory limit | Rationale                                    |
+| ------------------ | ------------ | -------------------------------------------- |
+| `postgres`         | 512 MB       | Shared DB; sufficient for a dev dataset      |
+| `redis`            | 64 MB        | Rate-limit counters only                     |
+| `indexer`          | 512 MB       | Full-text search + event replay              |
+| `dm-relay`         | 256 MB       | WebSocket connections + E2EE message routing |
+| `analytics-oracle` | 512 MB       | On-chain metric aggregation                  |
+
+> **Note**: `deploy.resources` is honoured by Docker Compose v2 with the
+> default `local` driver. If you use an older Compose file or a Swarm/ECS
+> deploy target, the limits are still respected — they map to container-level
+> `--memory` flags.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to set up your environment, branch conventions, and the PR process.
