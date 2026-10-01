@@ -109,6 +109,21 @@ schema snapshot after an intentional change.
 
 ---
 
+## Docker Resource Limits
+
+All services in `docker-compose.yml` have memory limits configured under `deploy.resources.limits` to prevent OOM issues in development:
+
+| Service            | Memory Limit |
+| ------------------ | ------------ |
+| `redis`            | 128 MB       |
+| `indexer`          | 512 MB       |
+| `dm-relay`         | 256 MB       |
+| `analytics-oracle` | 256 MB       |
+
+> These limits apply when running with `docker compose up`. Adjust them in `docker-compose.yml` if your local machine has different constraints.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to set up your environment, branch conventions, and the PR process.

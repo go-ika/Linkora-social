@@ -40,6 +40,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128m
 
   indexer:
     build:
@@ -70,6 +74,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   dm-relay:
     build:
@@ -97,6 +105,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   analytics-oracle:
     build:
@@ -136,6 +148,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
 networks:
   frontend:
