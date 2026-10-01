@@ -1,209 +1,209 @@
 # Contributing to Linkora
 
-Thanks for your interest in contributing! This document covers everything you need to get started: environment setup, branch conventions, the PR process, and the branch protection rules enforced on `main`.
+Thank you for your interest in contributing! This guide covers everything you
+need to get your environment ready, follow our branch conventions, and get a PR
+merged.
 
 ---
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
-- [Environment Setup](#environment-setup)
-- [Branch Conventions](#branch-conventions)
-- [Making Changes](#making-changes)
-- [Pull Request Process](#pull-request-process)
-- [Branch Protection Rules](#branch-protection-rules)
-- [Code Style](#code-style)
-- [Commit Messages](#commit-messages)
+1. [Prerequisites](#prerequisites)
+2. [Development Setup](#development-setup)
+3. [Branch Conventions](#branch-conventions)
+4. [Commit Guidelines](#commit-guidelines)
+5. [Pull Request Process](#pull-request-process)
+6. [Branch Protection Rules](#branch-protection-rules)
+7. [Code Style](#code-style)
+8. [Testing](#testing)
 
 ---
 
 ## Prerequisites
 
-- Node.js (version pinned in `.node-version`)
-- pnpm (`npm install -g pnpm`)
-- Rust + `wasm32v1-none` target (for contract development)
-- Docker + Compose v2 (for running services locally)
-- `stellar-cli` (for testnet deployments)
+| Tool           | Minimum version     | Notes                                |
+| -------------- | ------------------- | ------------------------------------ |
+| Node.js        | See `.node-version` | Managed via `nvm` or `fnm`           |
+| pnpm           | 9.x                 | `npm i -g pnpm`                      |
+| Rust           | stable              | `rustup toolchain install stable`    |
+| Docker         | 24+                 | Required for integration tests       |
+| Docker Compose | v2                  | Bundled with Docker Desktop          |
+| stellar-cli    | latest              | `cargo install --locked stellar-cli` |
 
-Run the setup script to verify all prerequisites and bootstrap the repo:
-
-```bash
-./scripts/setup.sh
-```
+Run `./scripts/setup.sh` after cloning — it checks all prerequisites, installs
+dependencies, and builds the contracts.
 
 ---
 
-## Environment Setup
+## Development Setup
 
 ```bash
-# 1. Fork and clone the repo
-git clone https://github.com/<your-username>/Linkora-social.git
+# 1. Fork and clone
+git clone https://github.com/<your-handle>/Linkora-social.git
 cd Linkora-social
 
-# 2. Install dependencies
-pnpm install
+# 2. Add the canonical upstream remote
+git remote add upstream https://github.com/julianajohn7202-stack/Linkora-social.git
 
-# 3. Start local services (PostgreSQL, Redis, Indexer, etc.)
+# 3. Run the setup script
+./scripts/setup.sh
+
+# 4. Start the local stack
 docker compose up -d
 
-# 4. Copy environment files and fill in values
-cp services/indexer/.env.example services/indexer/.env
+# 5. Start the web frontend
+cd apps/web && pnpm dev   # http://localhost:3000
 ```
 
 ---
 
 ## Branch Conventions
 
-All work must happen on a feature branch. **Never commit directly to `main`** — direct pushes are blocked by branch protection.
+| Type    | Pattern                            | Example                         |
+| ------- | ---------------------------------- | ------------------------------- |
+| Feature | `feat/<issue>-short-description`   | `feat/42-creator-profiles`      |
+| Bug fix | `fix/<issue>-short-description`    | `fix/99-follow-count-overflow`  |
+| Chore   | `chore/<issue>-short-description`  | `chore/120-update-dependencies` |
+| Docs    | `docs/<issue>-short-description`   | `docs/55-indexer-design`        |
+| DevOps  | `devops/<issue>-short-description` | `devops/288-branch-protection`  |
 
-| Branch prefix     | Purpose                                     |
-| ----------------- | ------------------------------------------- |
-| `feat/<slug>`     | New features                                |
-| `fix/<slug>`      | Bug fixes                                   |
-| `docs/<slug>`     | Documentation-only changes                  |
-| `chore/<slug>`    | Tooling, CI, dependency updates             |
-| `refactor/<slug>` | Code restructuring with no behaviour change |
-| `test/<slug>`     | Adding or improving tests                   |
+Rules:
 
-Examples:
-
-```bash
-git checkout -b feat/creator-token-supply
-git checkout -b fix/indexer-pagination-off-by-one
-git checkout -b docs/contributing-guide
-```
+- Branch off from `main`. Always rebase on `upstream/main` before opening a PR.
+- Use lowercase kebab-case.
+- Include the issue number when one exists.
+- Keep branches focused — one logical change per branch.
 
 ---
 
-## Making Changes
+## Commit Guidelines
 
-1. Create a branch from an up-to-date `main`:
-
-   ```bash
-   git fetch upstream
-   git checkout -b feat/your-feature upstream/main
-   ```
-
-2. Make your changes. Keep each PR focused on a single concern.
-
-3. Run checks locally before pushing:
-
-   ```bash
-   pnpm typecheck   # TypeScript
-   pnpm lint        # ESLint
-   pnpm test        # JS/TS tests
-   pnpm build       # Verify all packages build
-   cd packages/contracts && cargo test   # Rust contracts
-   ```
-
-4. Commit using the [Conventional Commits](#commit-messages) format.
-
----
-
-## Pull Request Process
-
-1. Push your branch to your fork:
-
-   ```bash
-   git push -u origin feat/your-feature
-   ```
-
-2. Open a PR against `julianajohn7202-stack/Linkora-social:main` (the upstream repo).
-
-3. Fill in the PR template:
-   - Describe what the PR does and why.
-   - Reference the related issue with `Closes #<number>`.
-   - Check off the testing checklist.
-
-4. Wait for CI to pass — all status checks must be green before merge.
-
-5. Request a review. At least **1 approving review** is required before the PR can be merged.
-
-6. Address any review feedback, then re-request review.
-
-7. Once approved and CI is green, a maintainer will merge using **Rebase and merge** (linear history is required — merge commits are not allowed).
-
----
-
-## Branch Protection Rules
-
-The `main` branch has the following protections configured on GitHub:
-
-### Required: Pull Request Reviews
-
-- **Minimum approvals:** 1
-- Direct pushes to `main` are blocked — all changes must go through a PR.
-- Dismisses stale reviews when new commits are pushed to the PR branch.
-- Requires review from a `CODEOWNERS` owner when the changed files match a CODEOWNERS pattern.
-
-### Required: Status Checks
-
-The following CI jobs (defined in `.github/workflows/ci.yml`) **must pass** before a PR can be merged:
-
-| Check                            | Description                                                            |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| `JS/TS — typecheck, test, build` | TypeScript type checking, Jest tests, and build for all JS/TS packages |
-| `Lint TypeScript Packages`       | ESLint across all TypeScript packages                                  |
-| `Unit Tests`                     | Rust contract unit tests, fuzz tests, and invariant tests              |
-
-Status checks are set to **strict** — the PR branch must be up to date with `main` before merging.
-
-### Required: Linear History
-
-- Merge commits are **not allowed** on `main`.
-- PRs are merged using **Rebase and merge** or **Squash and merge** only.
-- This keeps `git log` readable and `git bisect` reliable.
-
-### Summary Table
-
-| Rule                              | Setting                        |
-| --------------------------------- | ------------------------------ |
-| Require PR before merging         | ✅ Enabled                     |
-| Minimum approvals                 | 1                              |
-| Dismiss stale reviews on new push | ✅ Enabled                     |
-| Require status checks to pass     | ✅ Enabled — all three CI jobs |
-| Require branches to be up to date | ✅ Strict                      |
-| Require linear history            | ✅ Enabled (no merge commits)  |
-| Allow force pushes                | ❌ Disabled                    |
-| Allow deletions                   | ❌ Disabled                    |
-
-> **Note:** These rules are enforced at the GitHub repository level by maintainers. If you believe a protection rule is misconfigured, open an issue rather than trying to bypass it.
-
----
-
-## Code Style
-
-- **TypeScript:** Prettier (config in `.prettierrc`) + ESLint (config in `.eslintrc.base.json`). Run `pnpm lint` to check.
-- **Rust:** `rustfmt` (config in `packages/contracts/rustfmt.toml`). Run `cargo fmt --check` before pushing.
-- **Imports:** Keep imports sorted and remove unused ones.
-
-Pre-commit hooks via Husky run Prettier automatically on staged files. Don't skip hooks with `--no-verify`.
-
----
-
-## Commit Messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>(<scope>): <short summary>
 
 [optional body]
 
-[optional footer(s)]
+[optional footer — e.g. Closes #42]
 ```
 
-**Types:** `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `ci`
+Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `style`.
 
-**Examples:**
+Examples:
 
 ```
-feat(indexer): add cursor-based pagination to /posts endpoint
-fix(sdk): handle missing ledger sequence in TransactionQueue
+feat(contracts): add post-moderation hook
+fix(indexer): handle null ledger sequence on genesis block
 docs(contributing): add branch protection rules section
-chore(deps): bump @stellar/stellar-sdk to 12.1.0
 ```
 
-- Keep the summary under 72 characters.
-- Use the imperative mood: "add feature" not "added feature".
-- Reference issues in the footer: `Closes #123`.
+---
+
+## Pull Request Process
+
+1. **Rebase** your branch on the latest `upstream/main` before opening a PR:
+
+   ```bash
+   git fetch upstream
+   git rebase upstream/main
+   ```
+
+2. **Push** your branch to your fork:
+
+   ```bash
+   git push -u origin <branch-name>
+   ```
+
+3. **Open** a PR against `julianajohn7202-stack/Linkora-social:main`.
+
+4. **Title**: keep it under 70 characters and use the Conventional Commits
+   format (e.g. `feat(sdk): add typed tip client`).
+
+5. **Description**: explain _what_ was implemented and reference the issue
+   with `Closes #<issue>`.
+
+6. **Wait for CI** — all required status checks must pass before merging.
+
+7. A maintainer will review and approve. Address any requested changes by
+   pushing additional commits (do **not** force-push after review has started).
+
+8. Once approved and green, the PR will be merged using **rebase merge** to
+   keep a linear history on `main`.
+
+---
+
+## Branch Protection Rules
+
+The `main` branch is protected with the following rules enforced via GitHub
+repository settings:
+
+| Rule                                      | Setting                                                                                       |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Require pull request before merging       | ✅ Enabled                                                                                    |
+| Required approving reviews                | **1** (minimum)                                                                               |
+| Dismiss stale reviews on new push         | ✅ Enabled                                                                                    |
+| Require status checks to pass             | ✅ Enabled                                                                                    |
+| Required status checks                    | `CI / JS/TS — typecheck, test, build`<br>`CI / Lint TypeScript Packages`<br>`CI / Unit Tests` |
+| Require branches to be up to date         | ✅ Enabled                                                                                    |
+| Require linear history (no merge commits) | ✅ Enabled                                                                                    |
+| Do not allow force pushes                 | ✅ Enabled                                                                                    |
+| Do not allow deletions                    | ✅ Enabled                                                                                    |
+
+### Why these rules?
+
+- **PR reviews** catch bugs and keep the team aligned before code lands.
+- **Status checks** ensure every merge passes typecheck, lint, unit tests, and
+  contract tests — so `main` is always deployable.
+- **Linear history** makes `git bisect` reliable and the log easy to read.
+  Use `git rebase` instead of merge commits when incorporating upstream changes.
+
+### Applying the rules (maintainers only)
+
+For maintainers, these settings live in:
+**GitHub → Settings → Branches → Branch protection rules → `main`**.
+
+A GitHub CLI command to apply them (requires `admin` scope):
+
+```bash
+gh api repos/julianajohn7202-stack/Linkora-social/branches/main/protection \
+  --method PUT \
+  --field required_status_checks='{"strict":true,"contexts":["CI / JS/TS — typecheck, test, build","CI / Lint TypeScript Packages","CI / Unit Tests"]}' \
+  --field enforce_admins=false \
+  --field required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
+  --field restrictions=null \
+  --field required_linear_history=true \
+  --field allow_force_pushes=false \
+  --field allow_deletions=false
+```
+
+---
+
+## Code Style
+
+- **TypeScript**: enforced by ESLint (`pnpm lint`) and Prettier (`pnpm format`).
+  Config lives in `.eslintrc.base.json` and `.prettierrc`.
+- **Rust**: enforced by `rustfmt` and `clippy`. Run `cargo fmt` and
+  `cargo clippy -- -D warnings` before pushing.
+- A pre-commit hook (Husky) runs linting automatically on staged files.
+
+---
+
+## Testing
+
+```bash
+# TypeScript unit tests
+pnpm test
+
+# Contract unit + fuzz tests
+pnpm --filter contracts test
+
+# Integration tests (requires Docker)
+bash tests/integration/run_e2e.sh
+
+# Migration tests (requires Docker)
+bash tests/migrations/test-migrations.sh
+```
+
+All tests must pass locally before opening a PR. CI will re-run them on every
+push to a PR branch and on every push to `main`.
