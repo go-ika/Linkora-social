@@ -12,21 +12,35 @@ interface WithdrawTabProps {
   tokenMeta: TokenMeta | null;
   currentUser: string;
   onSuccess: () => void;
+  onRefreshBalance: () => Promise<bigint>;
 }
 
 const AMOUNT_RE = /^\d*\.?\d*$/;
 
-export function WithdrawTab({ pool, tokenMeta, currentUser, onSuccess }: WithdrawTabProps) {
+export function WithdrawTab({
+  pool,
+  tokenMeta,
+  currentUser,
+  onSuccess,
+  onRefreshBalance,
+}: WithdrawTabProps) {
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState(currentUser);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [recipientError, setRecipientError] = useState<string | null>(null);
+  const [balanceRefresh, setBalanceRefresh] = useState<"refreshing" | "updated" | "failed" | null>(
+    null
+  );
   const { status, result, error, withdraw, reset } = useWithdraw();
 
   const decimals = tokenMeta?.decimals ?? 7;
   const symbol = tokenMeta?.symbol ?? "TOKEN";
   const isAdmin = pool.admins.some((a) => a === currentUser);
-  const isSubmitting = status !== "idle" && status !== "error" && status !== "success";
+  const isSubmitting =
+    balanceRefresh === "refreshing" ||
+    (status !== "idle" && status !== "error" && status !== "success");
+  const submitDisabled =
+    isSubmitting || (balanceRefresh !== "failed" && (!amount || !!amountError || !!recipientError));
 
   // For M-of-N: in a real implementation, signers would be collected off-chain
   // (e.g., via a pending-signatures queue). Here we simulate the current user
@@ -36,13 +50,13 @@ export function WithdrawTab({ pool, tokenMeta, currentUser, onSuccess }: Withdra
   const needsMoreSigners = signerCount < pool.threshold;
 
   const validateAmount = useCallback(
-    (val: string): string | null => {
+    (val: string, balance = pool.balance): string | null => {
       if (!val || val === "0") return "Enter an amount";
       if (!AMOUNT_RE.test(val)) return "Invalid number";
       try {
         const parsed = parseTokenAmount(val, decimals);
         if (parsed <= BigInt(0)) return "Amount must be greater than 0";
-        if (parsed > pool.balance) return "Insufficient pool balance";
+        if (parsed > balance) return "Insufficient pool balance";
       } catch {
         return "Invalid amount";
       }
@@ -71,19 +85,34 @@ export function WithdrawTab({ pool, tokenMeta, currentUser, onSuccess }: Withdra
     if (recipientError) setRecipientError(validateRecipient(val));
   };
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const aErr = validateAmount(amount);
-      const rErr = validateRecipient(recipient);
-      setAmountError(aErr);
-      setRecipientError(rErr);
-      if (aErr || rErr) return;
+  const refreshBalance = async () => {
+    setBalanceRefresh("refreshing");
+    try {
+      const balance = await onRefreshBalance();
+      setAmountError(validateAmount(amount, balance));
+      setBalanceRefresh("updated");
+    } catch {
+      setBalanceRefresh("failed");
+    }
+  };
 
-      await withdraw(signers, pool.pool_id, amount, decimals, recipient.trim());
-    },
-    [amount, recipient, validateAmount, withdraw, signers, pool.pool_id, decimals]
-  );
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting || !isAdmin) return;
+    if (balanceRefresh === "failed") {
+      await refreshBalance();
+      return;
+    }
+    const aErr = validateAmount(amount);
+    const rErr = validateRecipient(recipient);
+    setAmountError(aErr);
+    setRecipientError(rErr);
+    if (aErr || rErr) return;
+
+    setBalanceRefresh(null);
+    const outcome = await withdraw(signers, pool.pool_id, amount, decimals, recipient.trim());
+    if (outcome === "stale-balance") await refreshBalance();
+  };
 
   const handleReset = () => {
     reset();
@@ -171,6 +200,16 @@ export function WithdrawTab({ pool, tokenMeta, currentUser, onSuccess }: Withdra
             </span>
           </div>
 
+          {balanceRefresh && (
+            <p role="status" style={styles.fieldError}>
+              {balanceRefresh === "refreshing"
+                ? "The pool balance changed. Refreshing the available balance…"
+                : balanceRefresh === "updated"
+                  ? "The pool balance changed. Review the available balance before trying again."
+                  : "The pool balance changed. Refresh the available balance before trying again."}
+            </p>
+          )}
+
           {/* Amount */}
           <div style={styles.fieldGroup}>
             <label htmlFor="withdraw-amount" style={styles.label}>
@@ -234,15 +273,17 @@ export function WithdrawTab({ pool, tokenMeta, currentUser, onSuccess }: Withdra
 
           <button
             type="submit"
-            disabled={isSubmitting || !amount || !!amountError || !!recipientError}
+            disabled={submitDisabled}
             style={{
               ...styles.submitBtn,
-              ...(isSubmitting || !amount || !!amountError || !!recipientError
-                ? styles.submitBtnDisabled
-                : {}),
+              ...(submitDisabled ? styles.submitBtnDisabled : {}),
             }}
           >
-            {isSubmitting ? (
+            {balanceRefresh === "refreshing" ? (
+              "Refreshing balance…"
+            ) : balanceRefresh === "failed" ? (
+              "Refresh balance"
+            ) : isSubmitting ? (
               <>
                 <span aria-hidden="true">⏳</span>
                 {status === "awaiting_sig" ? "Sign in Freighter…" : "Withdrawing…"}
